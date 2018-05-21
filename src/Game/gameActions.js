@@ -18,8 +18,23 @@ app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: true }))
 
 //connect model to use Schema
-require('./schemas/game.model')
+require('../../schemas/game.model')
 const Game = mongoose.model('games')
+
+app.get('/gamelist', function (req, res) {
+  Game.find({}).then(games => {
+    // Presenter
+    const gamesToPresent = games.map(game => {
+      return {
+        id: game._id,
+        name: game.name,
+        description: game.description
+      }
+    })
+    res.send(gamesToPresent)
+    console.log(games)
+  })
+});
 
 app.post('/create-game', function (req, res) {
   const game = new Game({
