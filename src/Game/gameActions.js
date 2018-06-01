@@ -20,6 +20,8 @@ app.use(bodyParser.urlencoded({ extended: true }))
 //connect model to use Schema
 require('../../schemas/game.model')
 const Game = mongoose.model('games')
+require('../../schemas/gameRoom.model')
+const GameRoom = mongoose.model('gameRooms')
 
 app.get('/gamelist', function (req, res) {
   Game.find({}).then(games => {
@@ -75,6 +77,18 @@ app.post('/update-game', function (req, res) {
     if (err) return handleError(err)
     res.send(game)
   })
+})
+
+app.post('/create-gameroom', function (req, res) {
+  const gameRoom = new GameRoom({
+    username: req.body.gameRoom.username,
+    game: req.body.gameRoom.game,
+    description: req.body.gameRoom.description,
+  })
+  gameRoom.save(function (err) {
+    if (err) return handleError(err)
+  })
+  res.send(gameRoom)
 })
 
 app.listen(3000, function () {
