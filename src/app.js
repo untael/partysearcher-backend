@@ -1,51 +1,61 @@
-// var createError = require('http-errors');
-var express = require('express');
-// var path = require('path');
-// var cookieParser = require('cookie-parser');
-// var logger = require('morgan');
+let express = require('express');
+let app = express();
+let bodyParser = require('body-parser');
+let mongoose = require('mongoose');
+let session = require('express-session');
+let MongoStore = require('connect-mongo')(session);
+let cors = require('cors')
+app.use(cors())
 
-// var indexRouter = require('./routes/index');
-// var usersRouter = require('./routes/users');
+//connect to MongoDB
+mongoose.connect('mongodb://localhost/psdb')
+//to succesful start
+.then(() => console.log('MongoDB has started ...'))
+//to errors
+  .catch(e => console.log(e))
+//-----------------
+const db = mongoose.connection;
 
-var app = express();
-
-
-
-app.get('/', function (req, res) {
-  res.send('Hello World!');
+//handle mongo error
+db.on('error', console.error.bind(console, 'connection error:'));
+db.once('open', function () {
+  // we're connected!
 });
 
-app.listen(3000, function () {
-  console.log('Example app listening on port 3000!');
-});
+//use sessions for tracking logins
+app.use(session({
+  secret: 'work hard',
+  resave: true,
+  saveUninitialized: false,
+  store: new MongoStore({
+    mongooseConnection: db
+  })
+}));
 
-// view engine setup
-// app.set('views', path.join(__dirname, 'views'));
-// app.set('view engine', 'ejs');
-//
-// app.use(logger('dev'));
-// app.use(express.json());
-// app.use(express.urlencoded({ extended: false }));
-// app.use(cookieParser());
-// app.use(express.static(path.join(__dirname, 'public')));
-//
-// app.use('/', indexRouter);
-// app.use('/users', usersRouter);
+// parse incoming requests
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: false }));
+
+// include routes
+const routes = require('../routes/router');
+app.use('/', routes);
 
 // catch 404 and forward to error handler
-// app.use(function(req, res, next) {
-//   next(createError(404));
-// });
-//
-// // error handler
-// app.use(function(err, req, res, next) {
-//   // set locals, only providing error in development
-//   res.locals.message = err.message;
-//   res.locals.error = req.app.get('env') === 'development' ? err : {};
-//
-//   // render the error page
-//   res.status(err.status || 500);
-//   res.render('error');
-// });
-//
-// module.exports = app;
+app.use(function (req, res, next) {
+  var err = new Error('File Not Found');
+  err.status = 404;
+  next(err);
+});
+
+// error handler
+// define as the last app.use callback
+app.use(function (err, req, res, next) {
+  res.status(err.status || 500);
+  res.send(err.message);
+});
+
+
+// listen on port 3000
+app.listen(3000, function () {
+  console.log('Express app listening on port 3000');
+});

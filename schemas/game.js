@@ -1,20 +1,19 @@
 const mongoose = require('mongoose')
 const Schema = mongoose.Schema
 
-const GameRoomSchema = new Schema({
-  username: {
+const GameSchema = new Schema({
+  id: {
     type: String,
-    required: true,
   },
-  game: {
+  name: {
     type: String,
     required: true,
   },
   description: {
     type: String,
     default: '',
-    required: true,
   },
 })
 
-mongoose.model('gameRooms', GameRoomSchema)
+const Game = mongoose.model('game', GameSchema)
+module.exports = Game;

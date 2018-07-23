@@ -11,6 +11,7 @@ mongoose.connect('mongodb://localhost/psdb')
 let express = require('express')
 let cors = require('cors')
 let app = express()
+let router = express.Router();
 app.use(cors())
 
 const bodyParser = require('body-parser')
@@ -18,9 +19,9 @@ app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: true }))
 
 //connect model to use Schema
-require('../../schemas/game.model')
+require('../../schemas/game')
 const Game = mongoose.model('games')
-require('../../schemas/gameRoom.model')
+require('../../schemas/gameRoom')
 const GameRoom = mongoose.model('gameRooms')
 
 app.get('/gamelist', function (req, res) {
@@ -35,6 +36,38 @@ app.get('/gamelist', function (req, res) {
     })
     res.send(gamesToPresent)
     console.log(games)
+  })
+});
+
+app.get('/gameroomlist', function (req, res) {
+  GameRoom.find({}).then(gameRooms => {
+    // Presenter
+    const gameRoomsToPresent = gameRooms.map(gameRoom => {
+      return {
+        id: gameRoom._id,
+        username: gameRoom.username,
+        game: gameRoom.game,
+        description: gameRoom.description
+      }
+    })
+    res.send(gameRoomsToPresent)
+    console.log(gameRooms)
+  })
+});
+
+app.get('/gameroomexplorer', function (req, res) {
+  GameRoom.find({}).then(gameRooms => {
+    // Presenter
+    const gameRoomsToPresent = gameRooms.map(gameRoom => {
+      return {
+        id: gameRoom._id,
+        username: gameRoom.username,
+        game: gameRoom.game,
+        description: gameRoom.description
+      }
+    })
+    res.send(gameRoomsToPresent)
+    console.log(gameRooms)
   })
 });
 
