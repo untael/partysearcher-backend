@@ -1,61 +1,205 @@
-let express = require('express');
-let app = express();
-let bodyParser = require('body-parser');
-let mongoose = require('mongoose');
-let session = require('express-session');
-let MongoStore = require('connect-mongo')(session);
+// =======================
+// get the packages we need ============
+// =======================
+let express = require('express')
+let app = express()
+let bodyParser = require('body-parser')
+let mongoose = require('mongoose')
+let morgan = require('morgan')
+let config = require('./config')
 let cors = require('cors')
+let jwt = require('jsonwebtoken')
+let User = require('../schemas/user')
+// let LocalStorage = require('node-localstorage').LocalStorage
+// localStorage = new LocalStorage('./scratch');
+
+// =======================
+// configuration =========
+// =======================
+let port = process.env.PORT || 3000 // used to create, sign, and verify tokens
+mongoose.connect(config.database) // connect to database
+app.set('superSecret', config.secret) // secret variable
+
 app.use(cors())
 
-//connect to MongoDB
-mongoose.connect('mongodb://localhost/psdb')
-//to succesful start
-.then(() => console.log('MongoDB has started ...'))
-//to errors
-  .catch(e => console.log(e))
-//-----------------
-const db = mongoose.connection;
+// use body parser so we can get info from POST and/or URL parameters
+app.use(bodyParser.urlencoded({ extended: false }))
+app.use(bodyParser.json())
 
-//handle mongo error
-db.on('error', console.error.bind(console, 'connection error:'));
-db.once('open', function () {
-  // we're connected!
-});
+// use morgan to log requests to the console
+app.use(morgan('dev'))
 
-//use sessions for tracking logins
-app.use(session({
-  secret: 'work hard',
-  resave: true,
-  saveUninitialized: false,
-  store: new MongoStore({
-    mongooseConnection: db
+// =======================
+// routes ================
+// =======================
+
+// basic route
+app.get('/', function (req, res) {
+  res.send('Hello! The API is at http://localhost:' + port + '/api')
+})
+
+//Save registered user to database
+app.post('/signup', function (req, res) {
+  const user = new User({
+    username: req.body.user.username,
+    password: req.body.user.password,
   })
-}));
+  user.save(function (err) {
+    if (err) throw err
+    console.log('User saved successfully')
+    res.json({ success: true })
+  })
+})
 
-// parse incoming requests
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: false }));
+// API ROUTES -------------------
 
-// include routes
-const routes = require('../routes/router');
-app.use('/', routes);
+// get an instance of the router for api routes
+let apiRoutes = express.Router()
+// route to show a random message (GET http://localhost:3000/api/)
+apiRoutes.get('/', function (req, res) {
+  res.json({ message: 'Server now is working' })
+})
 
-// catch 404 and forward to error handler
-app.use(function (req, res, next) {
-  var err = new Error('File Not Found');
-  err.status = 404;
-  next(err);
-});
+// route to return all users (GET http://localhost:3000/api/users)
+apiRoutes.get('/users', function (req, res) {
+  User.find({}, function (err, users) {
+    res.json(users)
+  })
+})
 
-// error handler
-// define as the last app.use callback
-app.use(function (err, req, res, next) {
-  res.status(err.status || 500);
-  res.send(err.message);
-});
+// route to authenticate a user (POST http://localhost:3000/api/authenticate)
+apiRoutes.post('/login', function (req, res) {
+  // console.log(req.body.user.password)
+  // find the user
+  User.findOne({
+    username: req.body.user.username,
+  }, function (err, user) {
+
+    if (err) throw err
+
+    if (!user) {
+      res.json({
+        success: false,
+        message: 'Authentication failed. User not found.',
+      })
+    } else if (user) {
+
+      // check if password matches
+      if (user.password != req.body.user.password) {
+        res.json({
+          success: false,
+          message: 'Authentication failed. Wrong password.',
+        })
+      } else {
+        // console.log(user.username)
+        // if user is found and password is right
+        // create a token with only our given payload
+        // we don't want to pass in the entire user since that has the password
+        const payload = {
+          admin: user.admin,
+        }
+        let token = jwt.sign(payload, app.get('superSecret'), {})
+        // return the information including token as JSON
+        res.json({
+          username: user.username,
+          id: user._id,
+          success: true,
+          message: 'Enjoy your token!',
+          token: token,
+        })
+      }
+    }
+  })
+})
+
+//Get User data to send to user profile
+apiRoutes.post('/profile-data', function (req, res) {
+  User.findOne({
+    _id: req.body.userId,
+  }, function (err, user) {
+
+    if (err) throw err
+
+    if (!user) {
+      res.json({
+        success: false,
+        message: 'Authentication failed. User not found.',
+      })
+    } else if (user) {
+      // console.log(user)
+      res.json({
+        username: user.username,
+        age: user.age,
+        sex: user.sex,
+        voice: user.voice,
+      })
+    }
+  })
+})
+// apiRoutes.post('/logout', function (req, res) {
+//   console.log( localStorage.getItem( 'token' ) );
+//   localStorage.clear();
+//   console.log( localStorage.getItem( 'token' ) );
+// })
 
 
-// listen on port 3000
-app.listen(3000, function () {
-  console.log('Express app listening on port 3000');
-});
+// route middleware to verify a token
+apiRoutes.use(function (req, res, next) {
+  apiRoutes.post('/gamelist', function (req, res) {
+    // check header or url parameters or post parameters for token
+    let token = req.body.token || req.query.token || req.headers['x-access-token']
+    // decode token
+    if (token) {
+      // verifies secret and checks exp
+      jwt.verify(token, app.get('superSecret'), function (err, decoded) {
+        if (err) {
+          return res.json({
+            success: false,
+            message: 'Failed to authenticate token.',
+          })
+        } else {
+          // if everything is good, save to request for use in other routes
+          req.decoded = decoded
+          next()
+        }
+      })
+    } else {
+      // if there is no token
+      // return an error
+      return res.status(403).send({
+        success: false,
+        message: 'No token provided.',
+      })
+    }
+  })
+})
+
+// apply the routes to our application with the prefix /api
+app.use('/api', apiRoutes)
+// =======================
+// start the server ======
+// =======================
+app.listen(port)
+console.log('Magic happens at http://localhost:' + port)
+// // include routes
+// const routes = require('../routes/router');
+// app.use('/', routes);
+
+// // catch 404 and forward to error handler
+// app.use(function (req, res, next) {
+//   var err = new Error('File Not Found');
+//   err.status = 404;
+//   next(err);
+// });
+//
+// // error handler
+// // define as the last app.use callback
+// app.use(function (err, req, res, next) {
+//   res.status(err.status || 500);
+//   res.send(err.message);
+// });
+// // listen on port 3000
+// app.listen(3000, function () {
+//   console.log('Express app listening on port 3000');
+// });
+
