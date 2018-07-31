@@ -1,7 +1,7 @@
 const mongoose = require('mongoose')
 const Schema = mongoose.Schema
 
-const GameSchema = new Schema({
+module.exports = mongoose.model('Game', new Schema({
   id: {
     type: String,
   },
@@ -13,7 +13,4 @@ const GameSchema = new Schema({
     type: String,
     default: '',
   },
-})
-
-const Game = mongoose.model('game', GameSchema)
-module.exports = Game;
+}))
