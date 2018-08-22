@@ -1,7 +1,7 @@
 const mongoose = require('mongoose')
 const Schema = mongoose.Schema
 
-const GameRoomSchema = new Schema({
+module.exports = mongoose.model('GameRoom', new Schema({
   id: {
     type: String,
   },
@@ -18,7 +18,8 @@ const GameRoomSchema = new Schema({
     default: '',
     required: true,
   },
-})
-
-const GameRoom = mongoose.model('gameRoom', GameRoomSchema)
-module.exports = GameRoom;
+  users: {
+    type: Array,
+    required: false,
+  },
+}))

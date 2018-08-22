@@ -11,6 +11,7 @@ let cors = require('cors')
 let jwt = require('jsonwebtoken')
 let User = require('../schemas/user')
 let Game = require('../schemas/game')
+let GameRoom = require('../schemas/gameRoom')
 
 // =======================
 // configuration =========
@@ -72,7 +73,7 @@ app.post('/signup', function (req, res) {
 
 //User login
 apiRoutes.post('/login', function (req, res) {
-  // console.log(req.body.user.password)
+  // console.log(req.body.user.username)
   // find the user
   User.findOne({
     username: req.body.user.username,
@@ -106,6 +107,7 @@ apiRoutes.post('/login', function (req, res) {
         res.json({
           username: user.username,
           id: user._id,
+          username: user.username,
           success: true,
           message: 'Login successful!',
           token: token,
@@ -173,7 +175,47 @@ apiRoutes.post('/profile-data', function (req, res) {
 
 //GAME ACTIONS
 
-//Get game list
+apiRoutes.post('/create-game', function (req, res) {
+  const game = new Game({
+    name: req.body.game.name,
+    description: req.body.game.description,
+  })
+  game.save(function (err) {
+    if (err) return handleError(err)
+  })
+  res.send(game)
+})
+
+apiRoutes.post('/delete-game', function (req, res) {
+  const game = new Game({
+    id: req.body.game.id,
+    name: req.body.game.name,
+    description: req.body.game.description,
+  })
+  Game.find({
+    _id: game.id,
+  })
+    .remove().then(_ => console.log('Removed'))
+  res.send(game)
+})
+
+apiRoutes.post('/update-game', function (req, res) {
+  const game = new Game({
+    id: req.body.game.id,
+    name: req.body.game.name,
+    description: req.body.game.description,
+  })
+  Game.findByIdAndUpdate(game.id, {
+    $set: {
+      name: req.body.game.name,
+      description: req.body.game.description,
+    },
+  }, { new: true }, function (err, game) {
+    if (err) return handleError(err)
+    res.send(game)
+  })
+})
+
 apiRoutes.post('/gamelist', function (req, res) {
   Game.find({}).then(games => {
     // Presenter
@@ -185,10 +227,57 @@ apiRoutes.post('/gamelist', function (req, res) {
       }
     })
     res.send(gamesToPresent)
-    // console.log(games)
+    console.log(games)
   })
 })
 
+
+//GAMEROOM ACTIONS
+
+apiRoutes.post('/create-gameroom', function (req, res) {
+  const gameRoom = new GameRoom({
+    username: req.body.gameRoom.username,
+    game: req.body.gameRoom.game,
+    description: req.body.gameRoom.description,
+    users: req.body.gameRoom.users,
+  })
+  gameRoom.save(function (err) {
+    if (err) return handleError(err)
+  })
+  res.send(gameRoom)
+})
+
+apiRoutes.get('/gameroomlist', function (req, res) {
+  GameRoom.find({}).then(gameRooms => {
+    // Presenter
+    const gameRoomsToPresent = gameRooms.map(gameRoom => {
+      return {
+        id: gameRoom._id,
+        username: gameRoom.username,
+        game: gameRoom.game,
+        description: gameRoom.description,
+      }
+    })
+    res.send(gameRoomsToPresent)
+    // console.log(gameRooms)
+  })
+})
+
+apiRoutes.get('/gameroomexplorer', function (req, res) {
+  GameRoom.find({}).then(gameRooms => {
+    // Presenter
+    const gameRoomsToPresent = gameRooms.map(gameRoom => {
+      return {
+        id: gameRoom._id,
+        username: gameRoom.username,
+        game: gameRoom.game,
+        description: gameRoom.description,
+      }
+    })
+    res.send(gameRoomsToPresent)
+    // console.log(gameRooms)
+  })
+})
 
 
 // apply the routes to our application with the prefix /api
